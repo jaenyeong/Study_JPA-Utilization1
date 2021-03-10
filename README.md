@@ -19,4 +19,6 @@ https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81%EB%B6%80%ED%8A%B8-JP
 * root 경로에 jpashop.mv.db 파일 생성 여부 확인
 * 1.4.200 버전에서 MVCC(Multi-Version Concurrency Control, 다중 버전 동시성 제어) 옵션 사용시 에러 발생
   * 1.4.198 버전부터 삭제됨
+* 기존에 테이블 존재시 모두 삭제
+  * drop all objects;
 -----
