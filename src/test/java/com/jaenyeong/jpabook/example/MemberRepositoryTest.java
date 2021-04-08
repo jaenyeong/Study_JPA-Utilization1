@@ -1,4 +1,4 @@
-package com.jaenyeong.jpabook.jpashop;
+package com.jaenyeong.jpabook.example;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
