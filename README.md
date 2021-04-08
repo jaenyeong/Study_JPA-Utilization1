@@ -179,3 +179,119 @@ public void addChildCategory(final Category childCategory) {
     childCategory.setParent(this);
 }
 ~~~
+
+**cascade = CascadeType.ALL**
+* 전파 옵션은 사용할 때 주의할 것
+* 여러 곳에서 해당 엔티티를 참조하는 경우엔 위험할 수 있음
+  * 데이터 변경, 또는 삭제가 자동으로 처리됨
+* 현재 예제의 `OrderItem`, `Delivery`처럼 `Order`에서만 사용하는 경우는 괜찮음
+* `OrderItem`, `Delivery`를 다른 엔티티에서 참조하는 경우 주의해서 사용할 것
+  * 이런 경우 별도의 `repository`를 사용해 `persist`하여 사용하는 것을 추천
+
+### 도메인 모델 패턴
+* 엔티티의 비즈니스 로직이 위치하고 서비스 레이어에서는 단순히 요청을 위임하는 구조
+
+### 트랜잭션 스크립트 패턴
+* 엔티티의 비즈니스 로직이 거의 없고, 서비스 레이어에 대부분의 비즈니스 로직이 있는 구조
+
+### 주문 검색 기능 동적쿼리
+**일반적인 파라미터를 사용한 쿼리**
+~~~
+public List<Order> findAll(final OrderSearch orderSearch) {
+    final TypedQuery<Order> orderTypedQuery = em.createQuery("select o from Order o join o.member m"
+            + " where o.status = :status"
+            + " and m.name like :name",
+        Order.class)
+        .setParameter("status", orderSearch.getOrderStatus())
+        .setParameter("name", orderSearch.getMemberName())
+//        .setFirstResult(100)
+        .setMaxResults(1_000);
+    
+    return orderTypedQuery.getResultList();
+}
+~~~
+
+**JPQL을 사용한 쿼리**
+~~~
+public List<Order> findAllByString(OrderSearch orderSearch) {
+    final String jpql = "select o From Order o join o.member m";
+    boolean isFirstCondition = true;
+    
+    //주문 상태 검색
+    if (orderSearch.getOrderStatus() != null) {
+        if (isFirstCondition) {
+            jpql += " where";
+            isFirstCondition = false;
+        } else {
+            jpql += " and";
+        }
+        jpql += " o.status = :status";
+    }
+    
+    //회원 이름 검색
+    if (StringUtils.hasText(orderSearch.getMemberName())) {
+        if (isFirstCondition) {
+            jpql += " where";
+            isFirstCondition = false;
+        } else {
+            jpql += " and";
+        }
+        jpql += " m.name like :name";
+    }
+    
+    final TypedQuery<Order> query = em.createQuery(jpql, Order.class).setMaxResults(1000); //최대 1000건
+    if (orderSearch.getOrderStatus() != null) {
+        query = query.setParameter("status", orderSearch.getOrderStatus());
+    }
+    if (StringUtils.hasText(orderSearch.getMemberName())) {
+        query = query.setParameter("name", orderSearch.getMemberName());
+    }
+    
+    return query.getResultList();
+}
+~~~
+
+**JPA criteria를 사용한 쿼리**
+~~~
+public List<Order> findAllByCriteria(final OrderSearch orderSearch) {
+    final CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
+    final CriteriaQuery<Order> criteriaQuery = criteriaBuilder.createQuery(Order.class);
+    final Root<Order> o = criteriaQuery.from(Order.class);
+    final Join<Object, Object> m = o.join("member", JoinType.INNER);
+    
+    final List<Predicate> criteria = new ArrayList<>();
+    
+    // 주문 상태 검색
+    if (orderSearch.getOrderStatus() != null) {
+        final Predicate status = criteriaBuilder.equal(o.get("status"), orderSearch.getOrderStatus());
+        criteria.add(status);
+    }
+    
+    // 회원 이름 검색
+    if (StringUtils.hasText(orderSearch.getMemberName())) {
+        final Predicate name = criteriaBuilder.like(m.get("name"), "%" + orderSearch.getMemberName() + "%");
+        criteria.add(name);
+    }
+    
+    criteriaQuery.where(criteriaBuilder.and(criteria.toArray(new Predicate[criteria.size()])));
+    final TypedQuery<Order> resultQuery = em.createQuery(criteriaQuery).setMaxResults(1_000);
+    
+    return resultQuery.getResultList();
+}
+~~~
+
+**QueryDSL을 사용한 쿼리**
+~~~
+public List<Order> findAll(final OrderSearch orderSearch) {
+    final QOrder order = QOrder.order;
+    final QMember member = QMember.member;
+    
+    return query
+            .select(order)
+            .from(order)
+            .join(order.member, member)
+            .where(statusEq(orderSearch.getOrderStatus()), nameLike(orderSearch.getmemberName()))
+            .limit(1_000)
+            .fetch();
+}
+~~~
