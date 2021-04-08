@@ -295,3 +295,8 @@ public List<Order> findAll(final OrderSearch orderSearch) {
             .fetch();
 }
 ~~~
+
+## 웹 계층 개발
+
+### header, footer 등 중복 제거
+[타임리프 문서](https://www.thymeleaf.org/doc/articles/layouts.html)
