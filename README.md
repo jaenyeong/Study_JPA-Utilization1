@@ -316,3 +316,60 @@ BindingResult 객체를 통해 파라미터(`Model`)의 유효성 검사와 바�
 
 ### 수정, 삭제 시 권한 검사할 것
 * 수정, 삭제 시 ID값을 조작하여 보내는 경우가 있으니 권한 검사 등을 필수로 수행할 것
+
+## 변경 감지와 병합(merge)
+
+### 준영속 엔티티
+* 영속성 컨텍스트가 더 이상 관리하지 않는 엔티티
+* 임의로 만들어낸 엔티티도 기존 식별자를 갖고 있다면 준영속(상태) 엔티티로 볼 수 있음
+* 예제에서는 `itemService.saveItem(book)`에서 수정을 시도하는 `book` 객체
+  * 이미 DB에 저장되어 식별자가 존재하는 상태
+
+#### 준영속 엔티티를 수정하는 방법
+* 변경 감지 기능 사용
+  * 영속(상태) 엔티티를 조회해서 데이터를 직접 수정
+  * ~~~
+    // 준영속 엔티티를 사용하지 않고 영속 엔티티의 데이터를 직접 수정하는 방법
+    @Transactional
+    public Item updateItem(final Long itemId, final Book book) {
+        final Item findItem = itemRepository.findOne(itemId);
+        findItem.setPrice(book.getPrice());
+        findItem.setName(book.getName());
+        findItem.setStockQuantity(book.getStockQuantity());
+
+        return findItem;
+    }
+    ~~~
+* 병합(`merge`) 사용
+  * 새로 생성한 객체를 영속성 컨텍스트에 `merge`
+  * `merge` 메커니즘은 위에서 설명한 직접 조회한 엔티티 데이터를 직접 수정하는 일을 대신함
+
+#### `merge` 사용시 주의점
+* 변경 감지 기능을 사용하면 원하는 속성만 선택해 변경
+* `merge` 기능을 사용하면 모든 속성(필드)이 다 변경됨
+  * 이 때 값이 없거나 `null`이라면 잘못된 데이터로 변경될 수 있음
+* 따라서 웬만하면 `merge` 기능 사용하는 것보다 영속 엔티티를 조회해 변경 감지 기능을 사용하는 것을 권함
+
+#### 데이터 변경시 `setter` 사용 금지
+* 비즈니스 로직은 엔티티에 있어야 관리가 쉬움
+* `setter`가 모두 열려 있으면 논리적으로 어떤 로직 내에서든 데이터를 변경할 수 있어 관리가 어려워 짐
+
+#### 예제에서 `save()` 메서드 주의사항
+~~~
+// 해당 메서드는 식별자 자동 생성 전략(@GeneratedValue)이 적용되어 있어야만 정상 작동
+// @Id만 선언된 상태로 호출하면 식별자가 없는 상태로 persist를 호출하게 되면서 예외 발생
+public void save(final Item item) {
+    if (item.getId() == null) {
+        em.persist(item);
+        return;
+    }
+
+    em.merge(item);
+}
+~~~
+
+#### 엔티티 변경시 주의사항
+* `controller`에서 엔티티 생성 지양
+* 트랜잭션이 있는 `service` 레이어에게 엔티티의 `ID`와 변경할 데이터를 제대로 전달할 것
+* 트랜잭션이 있는 `service` 레이어에서 영속성 엔티티를 조회해 변경할 것
+  * 트랜잭션 커밋 시점에 변경 감지가 실행됨
