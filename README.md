@@ -300,3 +300,12 @@ public List<Order> findAll(final OrderSearch orderSearch) {
 
 ### header, footer 등 중복 제거
 [타임리프 문서](https://www.thymeleaf.org/doc/articles/layouts.html)
+
+### Model validation, BindingResult
+BindingResult 객체를 통해 파라미터(`Model`)의 유효성 검사와 바인딩 결과를 확인, 처리 가능
+* 검증된 모델 객체 뒤에 와야 함
+* 에러가 발생해도 데이터를 그대로 가져감 (예제에서 `MemberForm` 객체)
+
+도메인 엔티티가 아닌 파라미터 (`Model`, DTO 등) 객체를 사용하는 이유
+* 데이터 송수신의 유효성 검사 기준과 비즈니스 로직(도메인)에서의 유효성 검사 기준이 다를 수 있음
+  * 따라서 정말 간단한 수준이 아니라면 각각 다른 클래스로 사용하는 것을 권장
