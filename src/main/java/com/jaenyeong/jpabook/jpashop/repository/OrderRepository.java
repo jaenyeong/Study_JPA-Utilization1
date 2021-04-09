@@ -38,4 +38,30 @@ public class OrderRepository {
 
         return orderTypedQuery.getResultList();
     }
+
+    public List<Order> findAllByCriteria(final OrderSearch orderSearch) {
+        final CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
+        final CriteriaQuery<Order> criteriaQuery = criteriaBuilder.createQuery(Order.class);
+        final Root<Order> o = criteriaQuery.from(Order.class);
+        final Join<Object, Object> m = o.join("member", JoinType.INNER);
+
+        final List<Predicate> criteria = new ArrayList<>();
+
+        // 주문 상태 검색
+        if (orderSearch.getOrderStatus() != null) {
+            final Predicate status = criteriaBuilder.equal(o.get("status"), orderSearch.getOrderStatus());
+            criteria.add(status);
+        }
+
+        // 회원 이름 검색
+        if (StringUtils.hasText(orderSearch.getMemberName())) {
+            final Predicate name = criteriaBuilder.like(m.get("name"), "%" + orderSearch.getMemberName() + "%");
+            criteria.add(name);
+        }
+
+        criteriaQuery.where(criteriaBuilder.and(criteria.toArray(new Predicate[criteria.size()])));
+        final TypedQuery<Order> resultQuery = em.createQuery(criteriaQuery).setMaxResults(1_000);
+
+        return resultQuery.getResultList();
+    }
 }
